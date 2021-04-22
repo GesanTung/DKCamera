@@ -226,7 +226,6 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     /// Determines whether or not the rotation is enabled.
     
     open var allowsRotate = false
-    open var showsCameraSwitchButton = false
     
     /// set to NO to hide all standard camera UI. default is YES.
     open var showsCameraControls = true {
@@ -271,8 +270,8 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     
     open var contentView = UIView()
     
-    open var originalOrientation: UIDeviceOrientation!
-    open var currentOrientation: UIDeviceOrientation!
+    open var originalOrientation: UIDeviceOrientation?
+    open var currentOrientation: UIDeviceOrientation?
     public let motionManager = CMMotionManager()
     
     open lazy var flashButton: UIButton = {
@@ -352,7 +351,7 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
                 if requiresFullScreen == nil || !(requiresFullScreen as! Bool) {
                     initialOriginalOrientationForOrientationIfNeeded()
                     return
-                }                
+                }
             }
             self.motionManager.startAccelerometerUpdates(to: OperationQueue.current!, withHandler: { accelerometerData, error in
                 if error == nil {
@@ -469,7 +468,6 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
             cameraSwitchButton.addTarget(self, action: #selector(DKCamera.switchCamera), for: .touchUpInside)
             cameraSwitchButton.setImage(cameraResource.cameraSwitchImage(), for: .normal)
             cameraSwitchButton.sizeToFit()
-            cameraSwitchButton.isHidden = !self.showsCameraSwitchButton
             
             return cameraSwitchButton
         }()
@@ -767,7 +765,7 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
                 guard let connection = photoCapture.connection(withMediaType: AVMediaTypeVideo) else { return }
                 #endif
                 
-                connection.videoOrientation = self.currentOrientation.toAVCaptureVideoOrientation()
+                connection.videoOrientation = self.currentOrientation?.toAVCaptureVideoOrientation() ?? .portrait
                 connection.videoScaleAndCropFactor = self.zoomScale
                 
                 let settings = AVCapturePhotoSettings(from: self.defaultPhotoSettings)
@@ -795,7 +793,7 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
                 guard let connection = stillImageOutput.connection(withMediaType: AVMediaTypeVideo) else { return }
                 #endif
                 
-                connection.videoOrientation = self.currentOrientation.toAVCaptureVideoOrientation()
+                connection.videoOrientation = self.currentOrientation?.toAVCaptureVideoOrientation() ?? .portrait
                 connection.videoScaleAndCropFactor = self.zoomScale
                 
                 stillImageOutput.captureStillImageAsynchronously(from: connection, completionHandler: { (imageDataSampleBuffer, error) in
@@ -806,7 +804,7 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
                             process(imageData)
                         } else {
                             completeBlock(nil, nil, NSError(domain: "DKCamera", code: -1,
-                                                            userInfo: 
+                                                            userInfo:
                                 [ NSLocalizedDescriptionKey : "DKCamera encountered an Unknown error" ]))
                         }
                     } else {
@@ -1027,18 +1025,21 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     open func initialOriginalOrientationForOrientation() {
         self.originalOrientation = UIApplication.shared.statusBarOrientation.toDeviceOrientation()
         if let connection = self.previewLayer.connection {
-            connection.videoOrientation = self.originalOrientation.toAVCaptureVideoOrientation()
+            connection.videoOrientation = self.originalOrientation?.toAVCaptureVideoOrientation()  ?? .portrait
         }
     }
     
     open func updateContentLayoutForCurrentOrientation() {
-        let newAngle = self.currentOrientation.toAngleRelativeToPortrait() - self.originalOrientation.toAngleRelativeToPortrait()
+        guard let currentOrientation = currentOrientation, let originalOrientation = originalOrientation else {
+            return
+        }
+        let newAngle = currentOrientation.toAngleRelativeToPortrait() - originalOrientation.toAngleRelativeToPortrait()
         
         if self.allowsRotate {
             var contentViewNewSize: CGSize!
             let width = self.view.bounds.width
             let height = self.view.bounds.height
-            if self.currentOrientation.isLandscape {
+            if let currentOrientation = self.currentOrientation, currentOrientation.isLandscape {
                 contentViewNewSize = CGSize(width: max(width, height), height: min(width, height))
             } else {
                 contentViewNewSize = CGSize(width: min(width, height), height: max(width, height))
