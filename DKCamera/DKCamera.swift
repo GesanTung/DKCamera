@@ -815,7 +815,7 @@ open class DKCamera: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         }
     }
     
-    private func cropImage(with takenImage: UIImage) -> UIImage {
+    open func cropImage(with takenImage: UIImage) -> UIImage {
         #if swift(>=4.0)
         let outputRect = self.previewLayer.metadataOutputRectConverted(fromLayerRect: self.previewLayer.bounds)
         #else
